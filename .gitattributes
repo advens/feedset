@@ -1,0 +1,15 @@
+# The source archive is the publisher. The commit harness stays in
+# git and is omitted from `git archive`. The manual and the examples
+# still ship.
+/.githooks/        export-ignore
+/.github/          export-ignore
+/.gitignore        export-ignore
+/.gitmessage       export-ignore
+/.gitattributes    export-ignore
+/AGENTS.md         export-ignore
+/CONTRIBUTING.md   export-ignore
+/SECURITY.md       export-ignore
+/scripts/          export-ignore
+/docs/COMMIT.md    export-ignore
+/docs/BRANCHES.md  export-ignore
+/docs/RELEASING.md export-ignore
