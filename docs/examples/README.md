@@ -22,10 +22,10 @@ a `threat.thrt`, an overlay database, or a MaxMind database.
 | `indicators.stix.json` | STIX 2.1 bundle. Patterns: `domain-name:value`, `url:value`, `ipv4-addr:value`, `email-addr:value`. |
 | `misp.misp.json` | Saved MISP body, type `misp`. Attributes include `domain`, `hostname`, `domain\|ip`, `url`, `email-src`, addresses, and the two zero hashes. `skip.example` has `to_ids` false, which `enrich` drops. `enrich sync` writes its own body at `misp.dest`. This file is the local sample, not that download. |
 | `allow.json` | Overlay allow list. |
-| `ua.json` | User-agent table. `entries` is non-empty. |
-| `tld.json` | Public-suffix table. Same rule. The rows are `example`, `invalid`, and `test`. |
-| `rules/` | Two fake Sigma rules. They are not detections. |
-| `sigma/` | Fake Sigma sources for `feedset harvest`. One invented user agent, `ExampleBot/1.0`, and the suffixes `example`, `invalid`, and `test`. |
+| `ua.json` | Hand-written user-agent table. `entries` is non-empty. `ExampleBot/1.0` is `suspicious`. `FeedsetSample/0.1` is `tool`. `harvest` does not emit `tool`. |
+| `tld.json` | Hand-written public-suffix table. The rows are `example`, `invalid`, and `test`, all `common`. No `classifiers` array. |
+| `rules/` | Two fake Sigma rules for `sigmac`. They are not detections, and `harvest` does not read this directory. |
+| `sigma/` | Sample rules tree for `harvest.rules`. It is not an input of `make example`. Harvesting it keeps `ExampleBot/1.0` as an exact `malware` row (the title contains `malware`), writes `ExampleBot` to `contains`, `ExampleMine` to `prefixes`, and `ExampleEnd` to `suffixes`, drops the one-byte value, the wildcard, `bot`, `Chrome`, and `ExampleRegexToken`, and lists the classifier `encoded`. Suffixes `example` and `invalid` are `common` and `test` is `suspicious`, with `classifiers` `["uncommon"]`. That result is not `ua.json` or `tld.json`. |
 | `standin/enrich` | Placeholder for `enrich`. It exits 1 and writes no file. |
 | `standin/sigmac/` | Placeholder for `python -m sigmac`. It writes two non-empty compile files so the detect publish can be seen. |
 
@@ -39,11 +39,17 @@ MAXMIND_LICENSE_KEY=EXAMPLELICENSE00__
 
 `make example` copies this directory into a temporary tree, runs
 `feedset render`, then `feedset build --only detect`, and prints
-two directories. `indicators:` is the staged work directory: the
-five indicator files, the rendered `enrich.json`, and the copied
-allow list. `publish:` holds `ua.json`, `tld.json`,
-`rules.sigmac`, and `rules.corr.json`. It does not hold
-`threat.thrt`. Do not point a collector at either directory.
+two directories. It does not run `harvest`. The staged
+`feedset.json` has no `harvest` block and does not point at
+`sigma/`. The `harvest` block in the checked-in `feedset.json` is
+the field illustration: `rules` is `/var/lib/feeds/sigma-rules`
+and `dest` is `/var/lib/feeds/catalog`. `indicators:` is the staged
+work directory: the five indicator files, the rendered
+`enrich.json`, and the copied allow list. `publish:` holds
+`ua.json`, `tld.json`, `rules.sigmac`, and `rules.corr.json`. It
+does not hold `threat.thrt`. Do not point a collector at either
+directory.
+
 Replace `enrich` and `sigma.python` in the config with the real
 programs when you want `enrich build` to compile the indicator
 files. Keep these samples as the inputs.

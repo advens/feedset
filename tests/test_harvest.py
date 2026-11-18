@@ -58,7 +58,16 @@ def _rules(root: Path) -> None:
         "    c-useragent:\n"
         "      - ExampleBot/1.0\n"
         "      - x\n"
-        "    c-useragent|endswith: '='\n"
+        "    c-useragent|contains:\n"
+        "      - ExampleBot\n"
+        "      - bot\n"
+        "    c-useragent|startswith:\n"
+        "      - Mozilla\n"
+        "      - ExampleMine\n"
+        "    c-useragent|endswith:\n"
+        "      - '='\n"
+        "      - ExampleEnd\n"
+        "    c-useragent|re: ExampleRegexToken\n"
         "  condition: selection\n",
         encoding="utf-8",
     )
@@ -93,6 +102,9 @@ class HarvestTests(unittest.TestCase):
             tld = harvest_tld(rules)
         self.assertEqual([row["ua"] for row in ua["entries"]], ["ExampleBot/1.0"])
         self.assertEqual(ua["entries"][0]["class"], "malware")
+        self.assertEqual([row["ua"] for row in ua["contains"]], ["ExampleBot"])
+        self.assertEqual([row["ua"] for row in ua["prefixes"]], ["ExampleMine"])
+        self.assertEqual([row["ua"] for row in ua["suffixes"]], ["ExampleEnd"])
         self.assertEqual(ua["classifiers"], ["encoded"])
         self.assertEqual(sorted(row["tld"] for row in tld["entries"]), ["example", "test"])
         classes = {row["tld"]: row["class"] for row in tld["entries"]}

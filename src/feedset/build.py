@@ -307,6 +307,9 @@ def _require_table(path: Path) -> None:
         raise FeedsetError("table is empty")
     if "classifiers" in data and not isinstance(data["classifiers"], list):
         raise FeedsetError("table is empty")
+    for key in ("contains", "prefixes", "suffixes"):
+        if key in data and not isinstance(data[key], list):
+            raise FeedsetError("table is empty")
 
 
 def _load_object(path: Path) -> dict:

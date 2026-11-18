@@ -54,6 +54,14 @@ _TLD_IDS = frozenset({
 _UA_RANK = {"malware": 3, "suspicious": 2, "tool": 1}
 _TLD_RANK = {"suspicious": 2, "common": 1}
 _MIN_EXACT = 3
+_MIN_PART = 5
+_PART_CAP = 1024
+# A modifier value that occurs in this User-Agent would stamp a normal browser.
+_BROWSER_UA = (
+    "mozilla/5.0 (windows nt 10.0; win64; x64) applewebkit/537.36 "
+    "(khtml, like gecko) chrome/120.0.0.0 safari/537.36"
+)
+_PART_LIST = {"contains": "contains", "startswith": "prefixes", "endswith": "suffixes"}
 
 
 def ref_ok(value: str) -> bool:
@@ -88,6 +96,7 @@ def harvest(cfg: dict, *, check: bool = False) -> None:
 def harvest_ua(rules_root: Path) -> dict[str, Any]:
     """Return the user-agent document body without the stamp fields."""
     exact: list[dict[str, str]] = []
+    parts: dict[str, list[dict[str, str]]] = {"contains": [], "prefixes": [], "suffixes": []}
     n_empty = 0
     n_encoded = 0
     for src in _yaml_files(rules_root):
@@ -97,21 +106,28 @@ def harvest_ua(rules_root: Path) -> dict[str, Any]:
                 continue
             title = str(doc.get("title") or src.stem)
             rule_id = _norm_id(doc.get("id"))
-            part = _ua_detection(
+            found = _ua_detection(
                 detection,
                 title=title,
                 rule_id=rule_id,
                 class_name=_ua_class(title, src),
             )
-            exact.extend(part["exact"])
-            n_empty += part["empty"]
-            n_encoded += part["encoded"]
+            exact.extend(found["exact"])
+            for key in parts:
+                parts[key].extend(found[key])
+            n_empty += found["empty"]
+            n_encoded += found["encoded"]
     classifiers: list[str] = []
     if n_empty:
         classifiers.append("empty")
     if n_encoded:
         classifiers.append("encoded")
-    return {"classifiers": classifiers, "entries": _merge(exact, "ua", _UA_RANK)}
+    body: dict[str, Any] = {"classifiers": classifiers, "entries": _merge(exact, "ua", _UA_RANK)}
+    for key, rows in parts.items():
+        merged = _merge(rows, "ua", _UA_RANK)[:_PART_CAP]
+        if merged:
+            body[key] = merged
+    return body
 
 
 def harvest_tld(rules_root: Path) -> dict[str, Any]:
@@ -184,6 +200,9 @@ def _document(product: str, built_at: str, body: dict, extra: dict[str, str]) ->
         "classifiers": body["classifiers"],
         "entries": body["entries"],
     }
+    for key in ("contains", "prefixes", "suffixes"):
+        if key in body:
+            doc[key] = body[key]
     doc.update(extra)
     return doc
 
@@ -407,8 +426,25 @@ def _as_list(value: object) -> list[object]:
     return [value]
 
 
+def _ascii_lower(text: str) -> str:
+    return "".join(chr(ord(ch) + 32) if "A" <= ch <= "Z" else ch for ch in text)
+
+
+def _in_browser(text: str) -> bool:
+    """True when the needle occurs in the reference browser User-Agent."""
+    return _ascii_lower(text) in _BROWSER_UA
+
+
+def _ua_row(text: str, *, title: str, rule_id: str | None, class_name: str) -> dict[str, str]:
+    row = {"ua": text, "class": class_name, "label": title}
+    if rule_id:
+        row["id"] = rule_id
+    return row
+
+
 def _ua_detection(detection: dict, *, title: str, rule_id: str | None, class_name: str) -> dict:
     exact: list[dict[str, str]] = []
+    parts: dict[str, list[dict[str, str]]] = {"contains": [], "prefixes": [], "suffixes": []}
     n_empty = 0
     n_encoded = 0
     for name, selection in detection.items():
@@ -428,17 +464,19 @@ def _ua_detection(detection: dict, *, title: str, rule_id: str | None, class_nam
                 if not mod and text == "":
                     n_empty += 1
                     continue
-                if mod in {"contains", "startswith", "endswith"}:
-                    continue
                 if any(ch in text for ch in "*?"):
                     continue
-                if len(text.encode("utf-8")) < _MIN_EXACT:
+                nbytes = len(text.encode("utf-8"))
+                if mod is None:
+                    if nbytes < _MIN_EXACT:
+                        continue
+                    exact.append(_ua_row(text, title=title, rule_id=rule_id, class_name=class_name))
                     continue
-                row = {"ua": text, "class": class_name, "label": title}
-                if rule_id:
-                    row["id"] = rule_id
-                exact.append(row)
-    return {"exact": exact, "empty": n_empty, "encoded": n_encoded}
+                bucket = _PART_LIST.get(mod)
+                if bucket is None or nbytes < _MIN_PART or _in_browser(text):
+                    continue
+                parts[bucket].append(_ua_row(text, title=title, rule_id=rule_id, class_name=class_name))
+    return {"exact": exact, "empty": n_empty, "encoded": n_encoded, **parts}
 
 
 def _tld_detection(detection: dict, *, title: str, rule_id: str | None, class_name: str) -> list[dict[str, str]]:

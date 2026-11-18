@@ -17,8 +17,9 @@ rules. This file is the config and the command.
 /var/lib/enrich/allow.ovly           work copy
 /var/lib/enrich/GeoLite2-City.mmdb
 /var/lib/enrich/GeoLite2-ASN.mmdb
-/var/lib/enrich/ua.json
+/var/lib/enrich/ua.json              work copy, from a path or from fetch
 /var/lib/enrich/tld.json
+/var/lib/feeds/catalog/ua.json       harvest output, beside tld.json and PIN
 /var/lib/feeds/1/                    publish directory, the eight names
 ```
 
@@ -316,8 +317,12 @@ Default, both generations:
    instead of a cursor. Without `--full`, `enrich` uses the cursor
    and ignores `since`.
 3. `enrich -c enrich.json build`. This writes the overlay and the
-   threat database that will be published. `sync` alone does not
-   write the overlay. The timeout is `timeout_sync`.
+   threat database that will be published. `enrich sync --apply`
+   also writes `threat.thrt` when the pull returns at least one
+   attribute. On a first pull, or with `--full`, that write is a
+   snapshot: the overlay is written before the database is folded.
+   An incremental sync does not write the overlay. This `build`
+   writes it. The timeout is `timeout_sync`.
 4. `enrich fetch`, from a temporary mode `0600` config that contains
    `geoip` and any `ua` or `tld` row that has a URL. The temporary
    file is removed when `enrich` returns. On `--only detect` the
@@ -356,37 +361,165 @@ Exit 0 when every requested generation published. Exit 1 when one
 did not. Exit 75 when the lock is busy. Exit 2 when the command line
 is wrong.
 
-### harvest
+## harvest
 
-Optional. `render` and `build` do not read it. `feedset harvest`
-does. Set `rules` or `ref`, and set `dest`. Setting both sources is
-an error.
+Optional. `render` and `build` do not read this block. `feedset
+harvest` does. Set `rules` or `ref`, and set `dest`. Setting both
+sources is an error. Omitting the block is an error only for the
+`harvest` command.
 
 | Field | Required | Meaning |
 |---|---|---|
 | `dest` | yes | Directory for `ua.json`, `tld.json`, and `PIN`. Absolute. |
-| `rules` | one of | Sigma rules directory. Absolute. No download. |
-| `ref` | one of | SigmaHQ ref. `refs/heads/master`, `refs/tags/<name>`, or a 40-character commit. The archive is `https://github.com/SigmaHQ/sigma/archive/<ref>.tar.gz`. |
+| `rules` | one of | Sigma rules directory. Absolute. No download. A `..` path segment is refused. |
+| `ref` | one of | `refs/heads/<name>`, `refs/tags/<name>`, or 40 hex digits. No `..` segment. The archive is `https://github.com/SigmaHQ/sigma/archive/<ref>.tar.gz`. |
 
-The user-agent walk reads selections on `c-useragent`,
-`cs-user-agent`, `cs-useragent`, `user_agent.original`, and
-`user-agent`. An exact string of at least 3 bytes becomes a row.
-An empty value is the `empty` classifier. A bare `endswith` of `=`
-is the `encoded` classifier. The suffix walk reads two public rule
-ids, `b5de2919-b74a-4805-91a7-5049accbaefe` (`common`) and
-`00d0b5ab-1f55-4120-8e83-487c0a7baf19` (`suspicious`), on `cs-host`,
-`c-host`, `dst_host`, `url.domain`, and `destination.domain`. A
-lookup miss is the `uncommon` classifier.
+When `build` copies local tables, set `ua.path` to `<dest>/ua.json`
+and `tld.path` to `<dest>/tld.json`. A `url` on those objects is a
+different source. `harvest` does not fill a URL.
 
-Both files are replaced together. An empty table, a refused archive,
-or a missing rules directory leaves the previous `ua.json`,
-`tld.json`, and `PIN` in place. The download limit is 300 seconds
-and 128 MiB. Child output from the download is discarded. The files
-are mode `0644`. `PIN` is the SigmaHQ commit, or `sha256:` of the
-local rules directory.
+The command holds `<work>/feedset.lock`, or `lock` when that field
+is set. The same lock as `build`. A busy lock exits 75 and prints
+`feedset is busy`. It does not download and it does not write.
 
-`feedset harvest -c feedset.json --check` exits 0 when `PIN` is
-already that commit or that directory digest. It does not write.
+### Tables
+
+Both documents are UTF-8 JSON, mode `0644`, keys sorted, with a
+trailing newline. `schema` is `1`. `product` is `feedset-ua` or
+`feedset-tld`. `built_at` is UTC, `YYYY-MM-DDTHH:MM:SSZ`. `entries`
+must be non-empty or the command refuses and leaves the previous
+files. `classifiers` is an array. `build` uses the check in
+`ua and tld` above. It does not interpret `class`, `product`, or
+the classifier names.
+
+```json
+{
+  "built_at": "2026-01-01T00:00:00Z",
+  "classifiers": ["encoded"],
+  "entries": [
+    {
+      "class": "malware",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "label": "Example malware agent",
+      "ua": "ExampleBot/1.0"
+    }
+  ],
+  "product": "feedset-ua",
+  "schema": 1
+}
+```
+
+`tld.json` uses `tld` in each entry, `"product": "feedset-tld"`,
+and `"classifiers": ["uncommon"]`. `id` is omitted when the rule
+has none. The object above is the shape `harvest` writes. It is
+not `docs/examples/ua.json`. That file is hand-written, and its
+class `tool` is a value this command does not emit.
+
+A user-agent row has `ua`, `class`, and `label`. The walk reads
+`c-useragent`, `cs-user-agent`, `cs-useragent`,
+`user_agent.original`, and `user-agent` from each selection that is
+a map. A selection written as a list is skipped. A null value is
+skipped. `class` is `malware` when the rule title or the file name
+contains `malware`. Every other kept row is `suspicious`. `label`
+is the rule title, or the file name without its suffix when the
+title is missing. `id` is present when the rule has one.
+
+An empty value with no modifier counts as the classifier `empty`
+and is not a row. An `endswith` whose value is exactly `=` counts
+as the classifier `encoded` and is not a row. Those two names are
+listed only when at least one such value was seen, `empty` first.
+They describe the table. They are not rows.
+
+A value with no modifier, no `*` or `?`, and at least 3 bytes is an
+exact row in `entries`. `contains`, `startswith`, and `endswith`
+are written to `contains`, `prefixes`, and `suffixes` when the
+value has no `*` or `?`, is at least 5 bytes, and does not occur
+inside this reference User-Agent after ASCII lowercasing:
+
+```
+mozilla/5.0 (windows nt 10.0; win64; x64) applewebkit/537.36 (khtml, like gecko) chrome/120.0.0.0 safari/537.36
+```
+
+`mozilla` and `mozilla/` occur in that string, so they are not
+prefixes. A scanner token such as a 6-byte name does not, so it is
+kept. `|re`, `|base64`, `|wide`, and any chained modifier are
+dropped. The same value, compared case-folded, is kept once inside
+each list. `malware` wins. An exact row and a `contains` row may
+name the same string. They are different comparisons. Each of the
+three lists stops at 1024 rows.
+
+`entries` is an exact compare of the whole User-Agent. `contains`
+matches a User-Agent that includes the value. `prefixes` matches
+the start. `suffixes` matches the end. Comparison is
+case-insensitive. The higher class wins. An exact `malware` row is
+reported on its own. A table hit wins over the trailing-`=`
+classifier. The contains scan stops after 32768 automaton nodes.
+The keys are omitted when the list is empty.
+
+A suffix row has `tld`, `class`, and `label`. The walk reads only
+two public rules: `b5de2919-b74a-4805-91a7-5049accbaefe` (`common`)
+and `00d0b5ab-1f55-4120-8e83-487c0a7baf19` (`suspicious`). The
+fields are `cs-host`, `c-host`, `dst_host`, `url.domain`, and
+`destination.domain`, with no modifier or `|endswith`. The value is
+lowercased, leading dots are removed, and only the last label is
+kept. `.co.uk` becomes `uk`. `evil.example` becomes `example`. A
+label is kept when it is 2 to 63 characters, ASCII letters or
+digits, and not all digits. A `*` or `?` drops the value. `label`
+is the rule title. `id` is the rule id. The same label is kept
+once. `suspicious` wins.
+
+`classifiers` on `tld.json` is always `["uncommon"]`. That name is
+not a row. It records that a suffix absent from `entries` is the
+uncommon class. This command does not do that lookup.
+
+A YAML file that does not parse is skipped. A document with no
+`detection` is skipped. When every file is skipped, or none of them
+yields a row, the table is empty. An empty table does not replace
+the previous files.
+
+### Stamp
+
+`PIN` is one line, mode `0644`. A `rules` source writes `sha256:`
+and the digest of the YAML files in path order. Each file
+contributes its relative path, a NUL, its bytes, and a NUL. A `ref`
+source writes the SigmaHQ commit when the commit lookup returns 40
+hex digits. When that lookup fails, `PIN` is the same kind of
+digest of the YAML that was extracted. Both JSON files then carry
+`sigmahq_ref`. They carry `sigmahq_commit` only when the commit is
+known.
+
+The archive download allows 15 seconds to connect, 300 seconds to
+finish, and 128 MiB. The commit lookup allows 30 seconds and 1 MiB.
+It uses the last path segment of `ref` (`master` for
+`refs/heads/master`). A member over 2 MiB is refused. An archive
+under 4096 bytes is refused. Only regular `.yml` and `.yaml`
+members are extracted. A link or any other non-regular member is
+skipped. A path that leaves the temporary directory refuses the
+archive. Child output is discarded. The program builds that one
+archive URL and the commit lookup.
+`curl -L` may follow a redirect. No other URL is constructed. The
+user agent is `feedset/0.1.0`.
+
+`ua.json` is replaced, then `tld.json`, then `PIN`. A crash or a
+refusal between those replacements can leave a mix. The next
+successful harvest replaces all three. A refusal before the first
+replacement leaves all three as they were. An empty table is that
+kind of refusal. A symlink at `dest`, or at a file about to be
+replaced, is refused. The second case can happen after `ua.json`
+has already been replaced.
+
+`feedset harvest -c feedset.json --check` prints nothing and writes
+nothing. It holds the same lock. For `rules`, exit 0 when `PIN` is
+the directory digest. For `ref`, it calls the commit lookup and
+does not download the archive. Exit 0 when that lookup returns 40
+hex digits and `PIN` is that commit. A `sha256:` stamp does not
+pass `--check` on a `ref`, including a stamp written because an
+earlier lookup failed. A missing `PIN` is exit 1 and the stderr line `harvest stamp
+differs`. A failed lookup prints that same line. A missing
+`harvest` block prints `harvest is missing` and does not take the
+lock. Exit 75 when the lock is busy. Exit 2 when the command line
+is wrong. A write that refuses the archive, or that finds an empty
+table, is also exit 1, and it is not what `--check` does.
 
 ## Commands
 
@@ -407,9 +540,13 @@ line when it writes:
 harvest: ua.json tld.json
 ```
 
-Exit 0 when the tables were written, or when `--check` finds the
-current stamp. Exit 1 when the harvest was refused. Exit 75 when
-the lock is busy. Exit 2 when the command line is wrong.
+Exit 0 when the tables were written, or when `--check` matches.
+For `rules`, a match is the directory digest. For `ref`, a match
+is the commit that ref points to now. Exit 1 when the block is
+missing, the stamp differs, the commit lookup fails, the archive
+is refused, or a table is empty. Those cases share exit 1. The
+stderr line distinguishes them. Exit 75 when the lock is busy.
+Exit 2 when the command line is wrong.
 
 ## Example
 
@@ -421,8 +558,11 @@ hashes. The allow list, the user-agent table, the public-suffix
 table, and the two rules use the same kind of invented value.
 `docs/examples/README.md` lists each file. `make example` stages
 that kit in a temporary directory and runs `render`, then
-`build --only detect`. `render` writes the indicator paths into
-`enrich.json`. The detect generation is what lands in `publish`.
+`build --only detect`. The staged config has no `harvest` block,
+and `sigma/` is not an input of that run. The `harvest` object in
+`docs/examples/feedset.json` is an illustration under `/var/lib`.
+`render` writes the indicator paths into `enrich.json`. The detect
+generation is what lands in `publish`.
 This kit has no `threat.thrt`. `enrich build` is the program that
 writes one, from those indicator files, and `make example` does
 not run it. The `enrich` stand-in exits 1 and writes nothing, so

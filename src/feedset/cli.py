@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     build_cmd.add_argument("--full", action="store_true")
     build_cmd.add_argument("--only", choices=("enrich", "detect"))
 
-    harvest_cmd = sub.add_parser("harvest", help="write ua.json and tld.json")
+    harvest_cmd = sub.add_parser("harvest", help="write ua.json, tld.json, and PIN")
     harvest_cmd.add_argument("-c", required=True, type=Path, metavar="file")
     harvest_cmd.add_argument("--check", action="store_true")
 
