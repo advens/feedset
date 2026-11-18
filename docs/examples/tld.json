@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "entries": [
+    {"tld": "example", "class": "common", "label": "RFC 2606"},
+    {"tld": "invalid", "class": "common", "label": "RFC 2606"},
+    {"tld": "test", "class": "common", "label": "RFC 2606"}
+  ]
+}

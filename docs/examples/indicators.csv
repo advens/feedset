@@ -1,0 +1,8 @@
+ip,203.0.113.50,70,scanner,example,green
+domain,example.invalid,70,phishing,example,green
+domain,feedset.example,70,phishing,example,green
+url,https://example.invalid/feedset,70,phishing,example,green
+url,https://example.test/sample,50,phishing,example,clear
+email,feedset@example.invalid,50,phishing,example,clear
+md5,00000000000000000000000000000000,50,malware,example,green
+sha256,0000000000000000000000000000000000000000000000000000000000000000,50,malware,example,green

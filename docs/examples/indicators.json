@@ -1,0 +1,20 @@
+{
+  "example.invalid": {
+    "tlp": "green",
+    "feed": ["example"],
+    "max_score": 70,
+    "type": "domain"
+  },
+  "https://example.invalid/feedset": {
+    "tlp": "green",
+    "feed": ["example"],
+    "max_score": 70,
+    "type": "url"
+  },
+  "203.0.113.50": {
+    "tlp": "green",
+    "feed": ["example"],
+    "max_score": 70,
+    "type": "ip"
+  }
+}

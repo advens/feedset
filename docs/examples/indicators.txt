@@ -1,0 +1,11 @@
+# documentation indicators only
+example.invalid
+feedset.example
+sample.test
+https://example.invalid/feedset
+https://example.test/sample
+feedset@example.invalid
+203.0.113.50
+198.51.100.10
+2001:db8::50
+00000000000000000000000000000000

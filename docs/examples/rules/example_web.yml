@@ -1,0 +1,11 @@
+title: Example request from ExampleBot
+id: 00000000-0000-4000-8000-000000000002
+status: test
+description: Fake rule shipped with feedset. It is not a detection.
+logsource:
+  category: web
+detection:
+  selection:
+    user_agent: ExampleBot/1.0
+  condition: selection
+level: informational

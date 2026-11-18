@@ -1,0 +1,11 @@
+title: Example query for example.invalid
+id: 00000000-0000-4000-8000-000000000001
+status: test
+description: Fake rule shipped with feedset. It is not a detection.
+logsource:
+  category: dns
+detection:
+  selection:
+    query: example.invalid
+  condition: selection
+level: informational

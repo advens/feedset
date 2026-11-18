@@ -1,0 +1,69 @@
+{
+  "Event": {
+    "info": "feedset example",
+    "threat_level_id": "2",
+    "Tag": [{"name": "tlp:green"}],
+    "Attribute": [
+      {
+        "type": "ip-dst",
+        "value": "203.0.113.50",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "ip-src",
+        "value": "198.51.100.10",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "domain",
+        "value": "example.invalid",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "hostname",
+        "value": "feedset.example",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "domain|ip",
+        "value": "sample.test|203.0.113.51",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "url",
+        "value": "https://example.invalid/feedset",
+        "to_ids": true,
+        "category": "Network activity"
+      },
+      {
+        "type": "email-src",
+        "value": "feedset@example.invalid",
+        "to_ids": true,
+        "category": "Payload delivery"
+      },
+      {
+        "type": "md5",
+        "value": "00000000000000000000000000000000",
+        "to_ids": true,
+        "category": "Payload delivery"
+      },
+      {
+        "type": "sha256",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000",
+        "to_ids": true,
+        "category": "Payload delivery"
+      },
+      {
+        "type": "domain",
+        "value": "skip.example",
+        "to_ids": false,
+        "category": "Network activity"
+      }
+    ]
+  }
+}

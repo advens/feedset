@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Stand-in for enrich. It does not write a threat database or download anything."""
+
+from __future__ import annotations
+
+import sys
+
+
+def main(argv: list[str]) -> int:
+    if "-c" not in argv:
+        print("enrich: config is missing", file=sys.stderr)
+        return 2
+    print("enrich: this stand-in does not write a threat database", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
