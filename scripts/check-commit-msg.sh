@@ -77,7 +77,7 @@ case "$type" in
 esac
 
 case "$scope" in
-    format|cli|build|github|docs|test) ;;
+    cli|build|github|docs|test) ;;
     *) fail "unknown scope '$scope'" ;;
 esac
 

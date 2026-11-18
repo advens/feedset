@@ -1,0 +1,53 @@
+name: Bug
+description: Something render, build, or harvest got wrong
+title: "fix(<scope>): "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Scope in the title must be one of
+        `cli` `build` `github` `docs` `test`.
+        This repository publishes the feed directory. It does not own
+        the threat format or the `.sigmac` format.
+        See [CONTRIBUTING.md](https://github.com/advens/feedset/blob/main/CONTRIBUTING.md)
+        for the commit and branch contract.
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or tag
+      placeholder: c446990 or 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture
+      options: [aarch64, amd64, both, other]
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "FreeBSD 14, Debian 12, macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Observed vs expected. Not a file list.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof
+      description: Command and the lines that show the failure. Silence is not proof.
+      placeholder: |
+        make test
+        ...
+      render: shell
+    validations:
+      required: true
