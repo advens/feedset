@@ -26,9 +26,11 @@ Python 3.11 or newer. No third-party packages. `PYTHONPATH` is `src`.
 
 ## Not in
 
-A secret store client. A host, a minion, or a package port. A Sigma
-YAML harvester. `ua.json` and `tld.json` arrive as files or URLs.
-This program checks them and publishes them.
+A secret store client. A host, a minion, or a package port.
+`feedset build` does not harvest. `ua.json` and `tld.json` arrive as
+files or URLs for `build`. `feedset harvest` is the command that
+writes them from a Sigma rules directory or from the public SigmaHQ
+archive. The committed examples stay fake.
 
 ## Must
 

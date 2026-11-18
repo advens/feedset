@@ -25,6 +25,7 @@ a `threat.thrt`, an overlay database, or a MaxMind database.
 | `ua.json` | User-agent table. `entries` is non-empty. |
 | `tld.json` | Public-suffix table. Same rule. The rows are `example`, `invalid`, and `test`. |
 | `rules/` | Two fake Sigma rules. They are not detections. |
+| `sigma/` | Fake Sigma sources for `feedset harvest`. One invented user agent, `ExampleBot/1.0`, and the suffixes `example`, `invalid`, and `test`. |
 | `standin/enrich` | Placeholder for `enrich`. It exits 1 and writes no file. |
 | `standin/sigmac/` | Placeholder for `python -m sigmac`. It writes two non-empty compile files so the detect publish can be seen. |
 

@@ -54,6 +54,7 @@ def load_config(path: Path) -> dict:
         "tld",
         "sigma",
         "indicators",
+        "harvest",
     }
     if unknown:
         raise ValueError("feedset config has an unknown key")
@@ -76,6 +77,7 @@ def load_config(path: Path) -> dict:
         "tld": _table(data.get("tld"), "tld"),
         "sigma": _sigma(data.get("sigma")),
         "indicators": _indicators(data.get("indicators", [])),
+        "harvest": _harvest(data.get("harvest")),
     }
     return cfg
 
@@ -293,6 +295,42 @@ def _indicators(value: object) -> list[dict]:
             raise ValueError("indicator path is refused")
         rows.append({"name": name, "type": kind, "layer": layer, "path": path})
     return rows
+
+
+def _harvest(value: object) -> dict | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("harvest is missing")
+    unknown = set(value) - {"ref", "rules", "dest"}
+    if unknown:
+        raise ValueError("harvest has an unknown key")
+    has_ref = "ref" in value
+    has_rules = "rules" in value
+    if has_ref == has_rules:
+        raise ValueError("harvest needs a ref or a rules path")
+    row: dict = {"dest": _abs(value.get("dest"), "harvest dest")}
+    if has_rules:
+        row["rules"] = _abs(value.get("rules"), "harvest rules")
+        return row
+    ref = value.get("ref")
+    if not isinstance(ref, str) or not _ref_ok(ref):
+        raise ValueError("harvest ref is refused")
+    row["ref"] = ref
+    return row
+
+
+def _ref_ok(value: str) -> bool:
+    if len(value) > 128 or ".." in value.split("/"):
+        return False
+    if len(value) == 40 and set(value) <= set("0123456789abcdef"):
+        return True
+    head, sep, tail = value.partition("/")
+    kind, sep2, name = tail.partition("/")
+    if head != "refs" or sep != "/" or kind not in {"heads", "tags"} or sep2 != "/" or not name:
+        return False
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-")
+    return set(value) <= allowed and "//" not in value
 
 
 def _sigma(value: object) -> dict:

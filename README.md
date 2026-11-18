@@ -19,10 +19,11 @@ generation that fails leaves its previous files in place.
 | `rules.corr.json` | detect | Correlation file from the same compile. |
 
 The user-agent table and the public-suffix table are part of the
-detect generation, with the compiled rules. `feedset` does not
-harvest them out of YAML. You give it the two JSON files, or a URL
-for each. `sigmac` runs only after both tables have been checked. The
-four detect files are replaced together.
+detect generation, with the compiled rules. `feedset harvest` reads
+a Sigma rules directory, or the public SigmaHQ archive, and writes
+those two files. `feedset build` does not harvest. You give `build`
+the two JSON files, or a URL for each. `sigmac` runs only after both
+tables have been checked. The four detect files are replaced together.
 
 `libenrich` owns `.thrt`, `.ovly`, and the MaxMind download.
 `libsigma` owns `.sigmac` and the correlation file. `feedset` writes
@@ -107,10 +108,10 @@ then exits 1.
 
 ## What this program does not do
 
-It does not harvest a rule tree into `ua.json` or `tld.json`. It does
-not talk to a secret store. It does not reload a daemon. It does not
-copy the directory onto another machine. Those belong with the
-deployment that runs this command.
+`build` does not harvest, and `harvest` does not run `enrich` or
+`sigmac`. The program does not talk to a secret store. It does not
+reload a daemon. It does not copy the directory onto another machine.
+Those belong with the deployment that runs this command.
 
 ## Contributing
 

@@ -1,0 +1,9 @@
+title: Example suspicious suffix
+id: 00d0b5ab-1f55-4120-8e83-487c0a7baf19
+logsource:
+  category: proxy
+detection:
+  selection:
+    url.domain|endswith:
+      - .test
+  condition: selection

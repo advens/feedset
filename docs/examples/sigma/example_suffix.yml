@@ -1,0 +1,10 @@
+title: Example public suffix
+id: b5de2919-b74a-4805-91a7-5049accbaefe
+logsource:
+  category: proxy
+detection:
+  selection:
+    cs-host|endswith:
+      - .example
+      - .invalid
+  condition: selection

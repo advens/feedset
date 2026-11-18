@@ -8,7 +8,8 @@ from pathlib import Path
 
 from feedset.build import build
 from feedset.config import load_config
-from feedset.errors import Busy
+from feedset.errors import Busy, FeedsetError
+from feedset.harvest import harvest
 from feedset.render import render
 
 ENRICH_LINE = (
@@ -28,6 +29,10 @@ def main(argv: list[str] | None = None) -> int:
     build_cmd.add_argument("-c", required=True, type=Path, metavar="file")
     build_cmd.add_argument("--full", action="store_true")
     build_cmd.add_argument("--only", choices=("enrich", "detect"))
+
+    harvest_cmd = sub.add_parser("harvest", help="write ua.json and tld.json")
+    harvest_cmd.add_argument("-c", required=True, type=Path, metavar="file")
+    harvest_cmd.add_argument("--check", action="store_true")
 
     try:
         args = parser.parse_args(argv)
@@ -50,6 +55,19 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         print("rendered")
+        return 0
+
+    if args.command == "harvest":
+        try:
+            harvest(cfg, check=args.check)
+        except Busy as exc:
+            print(str(exc), file=sys.stderr)
+            return 75
+        except (ValueError, FeedsetError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        if not args.check:
+            print("harvest: ua.json tld.json")
         return 0
 
     try:

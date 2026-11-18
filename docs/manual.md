@@ -80,6 +80,10 @@ files the paths point at. `build` does.
     "rules": "/var/lib/feeds/rules",
     "python": "python3",
     "module": "sigmac"
+  },
+  "harvest": {
+    "rules": "/var/lib/feeds/sigma-rules",
+    "dest": "/var/lib/feeds/catalog"
   }
 }
 ```
@@ -103,7 +107,8 @@ files the paths point at. `build` does.
 
 `misp`, `geoip`, `overlay`, `ua`, `tld`, and `sigma` are required
 objects. A feed set without the user-agent table or the public-suffix
-table is not a config this program accepts.
+table is not a config this program accepts. `harvest` is optional.
+`render` and `build` ignore it.
 
 ### misp
 
@@ -351,6 +356,38 @@ Exit 0 when every requested generation published. Exit 1 when one
 did not. Exit 75 when the lock is busy. Exit 2 when the command line
 is wrong.
 
+### harvest
+
+Optional. `render` and `build` do not read it. `feedset harvest`
+does. Set `rules` or `ref`, and set `dest`. Setting both sources is
+an error.
+
+| Field | Required | Meaning |
+|---|---|---|
+| `dest` | yes | Directory for `ua.json`, `tld.json`, and `PIN`. Absolute. |
+| `rules` | one of | Sigma rules directory. Absolute. No download. |
+| `ref` | one of | SigmaHQ ref. `refs/heads/master`, `refs/tags/<name>`, or a 40-character commit. The archive is `https://github.com/SigmaHQ/sigma/archive/<ref>.tar.gz`. |
+
+The user-agent walk reads selections on `c-useragent`,
+`cs-user-agent`, `cs-useragent`, `user_agent.original`, and
+`user-agent`. An exact string of at least 3 bytes becomes a row.
+An empty value is the `empty` classifier. A bare `endswith` of `=`
+is the `encoded` classifier. The suffix walk reads two public rule
+ids, `b5de2919-b74a-4805-91a7-5049accbaefe` (`common`) and
+`00d0b5ab-1f55-4120-8e83-487c0a7baf19` (`suspicious`), on `cs-host`,
+`c-host`, `dst_host`, `url.domain`, and `destination.domain`. A
+lookup miss is the `uncommon` classifier.
+
+Both files are replaced together. An empty table, a refused archive,
+or a missing rules directory leaves the previous `ua.json`,
+`tld.json`, and `PIN` in place. The download limit is 300 seconds
+and 128 MiB. Child output from the download is discarded. The files
+are mode `0644`. `PIN` is the SigmaHQ commit, or `sha256:` of the
+local rules directory.
+
+`feedset harvest -c feedset.json --check` exits 0 when `PIN` is
+already that commit or that directory digest. It does not write.
+
 ## Commands
 
 ```
@@ -359,9 +396,20 @@ feedset build -c feedset.json
 feedset build -c feedset.json --full
 feedset build -c feedset.json --only enrich
 feedset build -c feedset.json --only detect
+feedset harvest -c feedset.json
+feedset harvest -c feedset.json --check
 ```
 
-`-c` is required. There is no default path.
+`-c` is required. There is no default path. `harvest` prints one
+line when it writes:
+
+```
+harvest: ua.json tld.json
+```
+
+Exit 0 when the tables were written, or when `--check` finds the
+current stamp. Exit 1 when the harvest was refused. Exit 75 when
+the lock is busy. Exit 2 when the command line is wrong.
 
 ## Example
 

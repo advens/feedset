@@ -42,5 +42,9 @@
     "rules": "/var/lib/feeds/rules",
     "python": "python3",
     "module": "sigmac"
+  },
+  "harvest": {
+    "rules": "/var/lib/feeds/sigma-rules",
+    "dest": "/var/lib/feeds/catalog"
   }
 }

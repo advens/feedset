@@ -34,5 +34,6 @@ Python 3.11, type hints, 4 spaces. `make test` before you ask for
 merge. The behavior you change is described in `docs/manual.md` in
 the same change.
 
-Do not send a secret-store client, a host integration, or a rule
-harvester here. `ua.json` and `tld.json` are inputs.
+Do not send a secret-store client or a host integration. `build`
+takes `ua.json` and `tld.json` as inputs. `harvest` is the command
+that writes them. A sample in this tree stays fake.
