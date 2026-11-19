@@ -326,17 +326,16 @@ Default, both generations:
 1. Check the overlay allow file. A bad allow file does not start
    `enrich`. The detect generation still runs when its tables are
    local files.
-2. `enrich -c enrich.json sync --apply`. `--full` inserts `--full`
-   before `--apply`. `enrich` then uses `since` from the config
-   instead of a cursor. Without `--full`, `enrich` uses the cursor
-   and ignores `since`.
+2. `enrich -c enrich.json sync --full --apply`. `enrich` uses
+   `since` from the config, not a cursor. The pull is always a
+   snapshot: the next step recompiles the MISP `dest`, and an
+   incremental pull would leave only its own window there, so the
+   published database would lose the attributes earlier pulls folded
+   in.
 3. `enrich -c enrich.json build`. This writes the overlay and the
-   threat database that will be published. `enrich sync --apply`
-   also writes `threat.thrt` when the pull returns at least one
-   attribute. On a first pull, or with `--full`, that write is a
-   snapshot: the overlay is written before the database is folded.
-   An incremental sync does not write the overlay. This `build`
-   writes it. The timeout is `timeout_sync`.
+   threat database that will be published, from every feed file,
+   including the MISP `dest` the pull just wrote. The timeout is
+   `timeout_sync`.
 4. `enrich fetch`, from a temporary mode `0600` config that contains
    `geoip` and any `ua` or `tld` row that has a URL. The temporary
    file is removed when `enrich` returns. On `--only detect` the

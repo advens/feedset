@@ -10,7 +10,7 @@ generation that fails leaves its previous files in place.
 | File | Generation | What it is |
 |---|---|---|
 | `threat.thrt` | enrich | Threat database. `enrich sync --apply` writes it when the pull returns at least one attribute. `enrich build` writes it again. |
-| `threat.thrt_overlay` | enrich | Whitelist, tag, or add list (`.ovly`). `enrich build` writes it. A first sync, or `--full`, also writes it when the pull returns at least one attribute. An incremental sync does not. |
+| `threat.thrt_overlay` | enrich | Whitelist, tag, or add list (`.ovly`). `enrich build` writes it. `enrich sync --full` also writes it when the pull returns at least one attribute. |
 | `GeoLite2-City.mmdb` | enrich | MaxMind City. |
 | `GeoLite2-ASN.mmdb` | enrich | MaxMind ASN. |
 | `ua.json` | detect | User-agent table. A JSON object with a non-empty `entries` array. A row from `harvest` has `ua`, `class`, and `label`. |
@@ -127,8 +127,10 @@ It does not check `class`.
 below. It writes `enrich.json` mode `0600`. A refused secret does
 not replace an existing `enrich.json`.
 
-`build` publishes into the `publish` directory. `--full` is passed
-to `enrich sync` and is ignored by the detect generation. `--only`
+`build` publishes into the `publish` directory. `enrich sync` always
+runs with `--full`, since the `enrich build` that follows recompiles
+the MISP file; the `--full` flag of `build` is accepted and changes
+nothing. `--only`
 runs one generation. `harvest` and `build` share one lock.
 
 Secrets, in the environment, never in `feedset.json` and never on
