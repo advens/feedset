@@ -148,6 +148,44 @@ class ConfigTests(unittest.TestCase):
                 load_config(path)
 
 
+    def _sigma_config(self, tmp: Path, sigma: dict) -> Path:
+        cfg = _layout(tmp)
+        cfg["sigma"] = dict(sigma, rules=str(tmp / "rules"))
+        path = tmp / "feedset.json"
+        path.write_text(json.dumps(cfg) + "\n", encoding="utf-8")
+        return path
+
+    def test_sigmac_form_loads(self):
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            path = self._sigma_config(
+                tmp,
+                {
+                    "sigmac": "/opt/sigma/bin/libsigma-sigmac",
+                    "fields": "/etc/feeds/fields.txt",
+                    "placeholders": "/etc/feeds/placeholders.yml",
+                },
+            )
+            sigma = load_config(path)["sigma"]
+            self.assertEqual(sigma["sigmac"], "/opt/sigma/bin/libsigma-sigmac")
+            self.assertEqual(sigma["fields"], Path("/etc/feeds/fields.txt"))
+            self.assertNotIn("python", sigma)
+
+    def test_sigma_compiler_choice_is_checked(self):
+        cases = [
+            ({"python": "python3", "sigmac": "libsigma-sigmac"}, "exactly one"),
+            ({}, "exactly one"),
+            ({"sigmac": "libsigma-sigmac", "module": "sigmac"}, "module needs python"),
+            ({"python": "python3", "fields": "/etc/feeds/fields.txt"}, "need sigmac"),
+            ({"sigmac": "libsigma-sigmac", "fields": "fields.txt"}, "absolute"),
+            ({"sigmac": "bin/libsigma-sigmac"}, "not a command"),
+        ]
+        for sigma, message in cases:
+            with self.subTest(sigma=sigma), tempfile.TemporaryDirectory() as raw:
+                path = self._sigma_config(Path(raw), sigma)
+                with self.assertRaisesRegex(ValueError, message):
+                    load_config(path)
+
 class RenderTests(unittest.TestCase):
     def test_local_tables_are_not_enrich_rows(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -303,6 +341,39 @@ class BuildTests(unittest.TestCase):
             self.assertEqual(errors, ["sigmac failed"])
             self.assertEqual((tmp / "publish" / "tld.json").read_text(), "previous\n")
             self.assertFalse((tmp / "publish" / "rules.sigmac").exists())
+
+    def test_sigmac_form_runs_libsigma_sigmac(self):
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            cfg = _layout(tmp)
+            cfg["sigma"] = {
+                "rules": str(tmp / "rules"),
+                "sigmac": "libsigma-sigmac",
+                "fields": str(tmp / "fields.txt"),
+                "placeholders": str(tmp / "placeholders.yml"),
+            }
+            (tmp / "feedset.json").write_text(json.dumps(cfg) + "\n", encoding="utf-8")
+            loaded = load_config(tmp / "feedset.json")
+            render(loaded, ENV)
+            calls: list = []
+
+            def run(argv, timeout):
+                calls.append(argv)
+                if argv[0] == "libsigma-sigmac":
+                    Path(argv[argv.index("-o") + 1]).write_bytes(b"sigmac")
+                    Path(argv[argv.index("--corr") + 1]).write_bytes(b"{}")
+                    return subprocess.CompletedProcess(argv, 0, "", "")
+                return subprocess.CompletedProcess(argv, 1, "", "")
+
+            published, errors = build(loaded, run=run, only="detect")
+            self.assertEqual(errors, [])
+            self.assertEqual(published, ["detect"])
+            argv = calls[-1]
+            self.assertEqual(argv[:2], ["libsigma-sigmac", str(tmp / "rules")])
+            self.assertEqual(argv[argv.index("--fields") + 1], str(tmp / "fields.txt"))
+            self.assertEqual(argv[argv.index("--placeholders") + 1], str(tmp / "placeholders.yml"))
+            self.assertNotIn("compile", argv)
+            self.assertEqual((tmp / "publish" / "rules.sigmac").read_bytes(), b"sigmac")
 
     def test_busy_lock(self):
         with tempfile.TemporaryDirectory() as raw:
