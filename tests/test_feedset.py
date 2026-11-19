@@ -306,6 +306,17 @@ class BuildTests(unittest.TestCase):
             self.assertEqual(json.loads((pub / "ua.json").read_text())["entries"][0]["value"], "ua")
             self.assertIn("tld", (pub / "tld.json").read_text())
 
+    def test_sync_is_always_a_snapshot(self):
+        # The build after the sync recompiles the MISP file, so an
+        # incremental pull would publish only its own window.
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            _layout(tmp)
+            calls: list = []
+            published, errors = self._run(tmp, calls)
+            self.assertEqual(errors, [])
+            self.assertEqual(calls[0][-2:], ["--full", "--apply"])
+
     def test_short_threat_leaves_the_enrich_names(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)

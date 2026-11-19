@@ -85,7 +85,7 @@ def _build_locked(
             if only == "enrich":
                 return published, errors
         else:
-            sync_error = _sync(cfg, full=full, run=run)
+            sync_error = _sync(cfg, run=run)
             build_error = "" if sync_error else _enrich_build(cfg, run=run)
             fetch_error, fetched = _fetch(cfg, only="enrich" if only == "enrich" else None, run=run)
             if sync_error or build_error or fetch_error:
@@ -109,11 +109,11 @@ def _build_locked(
     return published, errors
 
 
-def _sync(cfg: dict, *, full: bool, run: Runner) -> str:
-    argv = [cfg["enrich"], "-c", str(cfg["enrich_config"]), "sync"]
-    if full:
-        argv.append("--full")
-    argv.append("--apply")
+def _sync(cfg: dict, *, run: Runner) -> str:
+    # Always a snapshot pull. The build that follows recompiles dest, and an
+    # incremental pull leaves only its own window there: the published
+    # database would lose every attribute an earlier pull had folded in.
+    argv = [cfg["enrich"], "-c", str(cfg["enrich_config"]), "sync", "--full", "--apply"]
     proc = run(argv, cfg["timeout_sync"])
     if proc.returncode != 0:
         return _reason(proc.stderr, "enrich sync failed")
