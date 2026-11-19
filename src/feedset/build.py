@@ -233,6 +233,28 @@ def _publish_enrich(cfg: dict) -> None:
     _publish(cfg["publish"], named)
 
 
+def sigmac_argv(sigma: dict, artifact: Path, corr: Path) -> list[str]:
+    """The compile command for the configured compiler."""
+    rules = str(sigma["rules"])
+    if "sigmac" in sigma:
+        argv = [sigma["sigmac"], rules, "-o", str(artifact), "--corr", str(corr)]
+        for key in ("fields", "placeholders"):
+            if key in sigma:
+                argv += [f"--{key}", str(sigma[key])]
+        return argv
+    return [
+        sigma["python"],
+        "-m",
+        sigma["module"],
+        "compile",
+        rules,
+        "-o",
+        str(artifact),
+        "--correlations",
+        str(corr),
+    ]
+
+
 def _publish_detect(cfg: dict, *, run: Runner, fetched: bool) -> None:
     ua = _materialize_table(cfg["ua"], fetched=fetched)
     tld = _materialize_table(cfg["tld"], fetched=fetched)
@@ -248,20 +270,7 @@ def _publish_detect(cfg: dict, *, run: Runner, fetched: bool) -> None:
     with tempfile.TemporaryDirectory(prefix=".feedset-sigmac-", dir=str(parent)) as tmp:
         artifact = Path(tmp) / "rules.sigmac"
         corr = Path(tmp) / "rules.corr.json"
-        proc = run(
-            [
-                cfg["sigma"]["python"],
-                "-m",
-                cfg["sigma"]["module"],
-                "compile",
-                str(rules),
-                "-o",
-                str(artifact),
-                "--correlations",
-                str(corr),
-            ],
-            cfg["timeout_sigma"],
-        )
+        proc = run(sigmac_argv(cfg["sigma"], artifact, corr), cfg["timeout_sigma"])
         if proc.returncode != 0 or not _regular_size(artifact) or not _regular_size(corr):
             raise FeedsetError("sigmac failed")
         _publish(

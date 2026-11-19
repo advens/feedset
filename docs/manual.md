@@ -214,14 +214,28 @@ RFC 2606.
 | Field | Required | Meaning |
 |---|---|---|
 | `rules` | yes | Directory of `.yml` or `.yaml` files. Absolute. At least one file, searched recursively. A symlink directory is refused. |
-| `python` | yes | Interpreter. Absolute path, or a single token with no slash. |
-| `module` | no | Default `sigmac`. A single token. |
+| `python` | one of | Interpreter. Absolute path, or a single token with no slash. |
+| `module` | no | With `python` only. Default `sigmac`. A single token. |
+| `sigmac` | one of | The `libsigma-sigmac` command. Absolute path, or a single token with no slash. |
+| `fields` | no | With `sigmac` only. Absolute path of the produced field list. |
+| `placeholders` | no | With `sigmac` only. Absolute path of the `\|expand` values. |
 
-The command is:
+Exactly one of `python` and `sigmac` is set. With `python` the command
+is:
 
 ```
 <python> -m <module> compile <rules> -o <tmp>/rules.sigmac --correlations <tmp>/rules.corr.json
 ```
+
+With `sigmac` the command is the following, and `--fields` and
+`--placeholders` are passed only when they are set:
+
+```
+<sigmac> <rules> -o <tmp>/rules.sigmac --corr <tmp>/rules.corr.json [--fields <fields>] [--placeholders <placeholders>]
+```
+
+feedset does not read `fields` or `placeholders`. A missing file is a
+compiler failure.
 
 Both outputs must be non-empty regular files. They are published
 with `ua.json` and `tld.json` after the compile. A failure before

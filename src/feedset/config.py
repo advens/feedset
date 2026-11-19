@@ -334,13 +334,34 @@ def _ref_ok(value: str) -> bool:
 
 
 def _sigma(value: object) -> dict:
+    """Two compilers. ``python`` runs a module. ``sigmac`` runs libsigma-sigmac.
+
+    Exactly one of them is set. ``module`` goes with ``python``.
+    ``fields`` and ``placeholders`` go with ``sigmac``.
+    """
     if not isinstance(value, dict):
         raise ValueError("sigma is missing")
-    unknown = set(value) - {"rules", "python", "module"}
+    unknown = set(value) - {"rules", "python", "module", "sigmac", "fields", "placeholders"}
     if unknown:
         raise ValueError("sigma has an unknown key")
-    return {
-        "rules": _abs(value.get("rules"), "sigma rules"),
-        "python": _command(value.get("python"), "sigma python"),
-        "module": _command(value.get("module", "sigmac"), "sigma module"),
+    rules = _abs(value.get("rules"), "sigma rules")
+    if ("python" in value) == ("sigmac" in value):
+        raise ValueError("sigma needs exactly one of python and sigmac")
+    if "python" in value:
+        if "fields" in value or "placeholders" in value:
+            raise ValueError("sigma fields and placeholders need sigmac")
+        return {
+            "rules": rules,
+            "python": _command(value.get("python"), "sigma python"),
+            "module": _command(value.get("module", "sigmac"), "sigma module"),
+        }
+    if "module" in value:
+        raise ValueError("sigma module needs python")
+    row = {
+        "rules": rules,
+        "sigmac": _command(value.get("sigmac"), "sigma sigmac"),
     }
+    for key in ("fields", "placeholders"):
+        if key in value:
+            row[key] = _abs(value.get(key), f"sigma {key}")
+    return row
